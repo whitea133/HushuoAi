@@ -7,6 +7,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './', // 这里更改打包相对绝对路径
   plugins: [
     vue(),
     vueDevTools(),

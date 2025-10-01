@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button"
         <Input id="picture" type="file" class="cursor-pointer rounded-sm border-3 border-indigo-500 border-solid"/>
     </div>
         <Input type="email" class="rounded-sm border-3 border-indigo-500 border-solid" placeholder="输入加密信息（解密则无需输入信息）" />
-    <Button>加密视频</Button>
-    <Button variant="destructive">解密视频</Button>
+    <Button class="cursor-pointer">加密视频</Button>
+    <Button variant="destructive" class="cursor-pointer">解密视频</Button>
        <Input type="email" class="rounded-sm border-3 border-red-500 border-solid my-3" placeholder="解密信息" />
 </div>
 </template>

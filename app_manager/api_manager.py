@@ -30,7 +30,7 @@ class Api():
             else:
                 # 打包环境：file:///path/to/index.html#/settings (假设 Vue Router 是 Hash 模式)
                 # 需检查 self.rootPath 是否已经是 file:// 形式
-                new_window_url = f"{self.rootPath}/#/{route}"
+                new_window_url = f"{self.rootPath}/#{route}"
                 print("处于打包环境！")
             # 3. 创建新窗口的代码
             new_window = webview.create_window(
