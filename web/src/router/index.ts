@@ -18,8 +18,8 @@ const router = createRouter({
       component: () => import('../views/textTool.vue'),
     },
     {
-       path: '/videoTool',
-       component: () => import('../views/videoTool.vue'),
+       path: '/imgTool',
+       component: () => import('../views/imgTool.vue'),
     },
         {
        path: '/voiceTool',

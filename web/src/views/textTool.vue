@@ -129,7 +129,7 @@ async function textDecode(): Promise<void>
             errorMessage = `提取失败: HTTP ${status} - ${detail}`;
         }
         
-        buttonStr1.value = "提取秘密" // 恢复”提取秘密“按钮的状态
+        buttonStr2.value = "提取秘密" // 恢复”提取秘密“按钮的状态
         console.error("文本提取失败:", error);
         alert(errorMessage);
     }

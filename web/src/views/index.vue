@@ -52,8 +52,8 @@ const openTextTools = () => {
 
 const openVideoTools = () => {
   openToolsWindow({
-    title: "视频加解密工具",
-    route: '/videoTool', 
+    title: "图片加解密工具",
+    route: '/imgTool', 
   });
 };
 

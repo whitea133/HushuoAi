@@ -24,13 +24,20 @@ class Api():
 
             # --- 关键修正：构造新窗口的 URL ---
             if 'http' in self.rootPath:
-                # 开发环境：http://localhost:5173/settings
+                '''
+                开发环境：http://localhost:5173/#/settings
+                开发环境下，会自动寻找根路径index.html
+                '''
                 new_window_url = f"{self.rootPath}/#{route}" 
                 print("处于开发环境！")
             else:
-                # 打包环境：file:///path/to/index.html#/settings (假设 Vue Router 是 Hash 模式)
-                # 需检查 self.rootPath 是否已经是 file:// 形式
-                new_window_url = f"{self.rootPath}/#{route}"
+                '''
+                程序启动时默认会启动本地服务器，使用配置文件设定的端口关联子窗口
+                注意hash静态服务器，必须写出index.html的位置，因为静态服务器不会自动寻找index.html
+                路由访问格式必须是：http://localhost:51370/index.html#/yourrouter
+                访问之后浏览器会自动变更为http://localhost:51370/#/yourrouter
+                '''
+                new_window_url = f"http://localhost:51370/index.html#{route}"
                 print("处于打包环境！")
             # 3. 创建新窗口的代码
             new_window = webview.create_window(

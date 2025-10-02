@@ -20,4 +20,4 @@ print("html_file_path：", html_file_path)
 js_api = Api(html_file_path)
 
 window = webview.create_window('胡说聊天助手', html_file_path, js_api=js_api, width=1200, height=800)	# 只需要用路径html_file_path即可
-webview.start(debug=False)
+webview.start(http_port=51370, debug=True) # 当html_file_path是http://的开发环境时，http_port无效
