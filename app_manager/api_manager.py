@@ -1,5 +1,9 @@
 import webview
 import json
+import queue
+from .shared_data import realtime_q
+from .userMessage import userMessage
+
 '''
 这里管理着与vue交互的所有函数，比如创建窗口，子窗口等
 '''
@@ -9,6 +13,7 @@ class Api():
         self.rootPath = rootPath
         # 注意：这里的 Api 初始化不再需要 main_window，因为它只处理 API 逻辑
         # 如果需要访问窗口实例，请在 main.py 中修改创建 Api 实例的方式。
+        self.userMessage = userMessage()
 
 
     def say_hello(self):
@@ -56,3 +61,20 @@ class Api():
         except Exception as e:
             print(f"创建窗口失败: {e}")
             return f"Error: {e}"
+        
+            # 新增方法：让 Vue 轮询这个方法来获取新消息
+    def get_realtime_messages(self):
+        """
+        从实时队列中取出所有当前可用的消息，并返回列表。
+        """
+        messages = []
+        # 安全地从队列中取出所有项
+        while not realtime_q.empty():
+            try:
+                # 设置非阻塞获取，确保不会卡住
+                messages.append(realtime_q.get_nowait())
+            except queue.Empty:
+                # 队列为空时退出循环
+                break
+        
+        return messages

@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { ref ,onMounted, onUnmounted} from "vue";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from '@/components/ui/input'
 import leftBar from "@/views/leftBar.vue";
 
+
+const ifConnected = ref<boolean>(false);
+const connectedObject = ref<string>('');
+const messageLog = ref<string[]>([]); // 聊天区的内容
+let pollInterval: number | undefined = undefined;
 
 const openToolsWindow = async (config: { title: string; route: string }) => {
   
@@ -63,15 +70,82 @@ const openVoiceTools = () => {
     route: '/voiceTool', 
   });
 };
+
+const tryConnect = () => {
+  if (!connectedObject.value.trim()) {
+    alert('连接对象不能为空');
+    return;
+  }
+    // 1. 停止任何可能的旧轮询
+    if (pollInterval !== undefined) {
+        clearInterval(pollInterval);
+    }
+    
+    // TODO: 这里应调用 Python API 启动监听，成功后继续
+    // await pyApi.user_message_service.createConnect(connectedObject.value.trim());
+
+    // 2. 设置状态为连接成功
+    ifConnected.value = true;
+    
+    // 3. 启动轮询：将定时器句柄保存到 pollInterval
+    pollInterval = setInterval(fetchNewMessages, 500); 
+    console.log("连接成功，轮询已启动。");
+};
+
+const tryDisConnect = () => {
+    // 1. 清除定时器
+    if (pollInterval !== undefined) {
+        clearInterval(pollInterval);
+        pollInterval = undefined; // 清除引用
+        console.log("断开连接，轮询已停止。");
+    }
+    
+    // TODO: 这里应调用 Python API 停止监听
+
+  // 这里写断连的连接逻辑
+  ifConnected.value = false;   // 示例：连接断开后弹回初始界面
+};
+
+// ---------------------------------------------
+// 关键：定时从 Python 队列中获取数据
+// ---------------------------------------------
+async function fetchNewMessages() {
+    if (!(window as any).pywebview || !(window as any).pywebview.api) {
+        // 开发环境或 API 未就绪时跳过
+        return; 
+    }
+    
+    try {
+        // 调用 Python API
+        const newMessages = await (window as any).pywebview.api.get_realtime_messages();
+        
+        if (newMessages && newMessages.length > 0) {
+            // 将新消息添加到日志列表
+            messageLog.value.push(...newMessages);
+            // 可以滚动到底部等操作
+        }
+    } catch (error) {
+        console.error("Error fetching realtime messages from Python:", error);
+    }
+}
+
+onUnmounted(() => {
+    // 这是一个安全网，确保当组件被路由切换或 v-if 移除时，定时器不会在后台运行。
+    if (pollInterval !== undefined) {
+        clearInterval(pollInterval);
+        pollInterval = undefined;
+        console.log("组件销毁，安全停止轮询。");
+    }
+});
+
 </script>
 
 <template>
 <div class="grid grid-cols-12 h-screen bg-gray-100">
 
   <leftBar class="col-span-1"/>
-  <!-- <RouterView class="col-span-9"/> -->
-   <div class="col-span-11 grid grid-cols-1 grid-rows-10 gap-4 m-3"> 
-    
+<!-- 右侧界面代码开始 -->
+  <div class="col-span-11 grid grid-cols-1 grid-rows-10 gap-4 m-3" v-if="ifConnected"> 
     <!-- 下面是信息窗口，以及发送窗口 -->
     <Textarea class="bg-white row-span-6" placeholder="这里是信息窗口" disabled />
 
@@ -88,7 +162,9 @@ const openVoiceTools = () => {
         <Button variant="outline" size="icon" title="音频加解密" class="cursor-pointer" @click="openVoiceTools">
             <img src="@/components/icons/加密音频.png" alt="音频加解密" class="w-5 h-5" />
         </Button>
-        </div>
+        
+        <Button class="h-8 cursor-pointer ml-auto bg-orange-400 hover:bg-orange-500" @click="tryDisConnect">断开连接</Button>
+      </div>
 
         <Textarea class="row-span-8 bg-white" placeholder="这里是对话窗口" />
         
@@ -97,8 +173,16 @@ const openVoiceTools = () => {
         </div>
         
     </div>
+    
+<!-- 右侧界面代码结束 -->  
+  </div>
+  <div v-else class="col-span-11 grid place-content-center">
+    <div class="flex">
+     <Input id="email" type="email" placeholder=" 请填入对话对象" v-model="connectedObject" class="bg-white mx-2 w-60 h-8 border-1 border-blue-500 rounded-md"/>
+     <Button class="h-8 cursor-pointer" @click="tryConnect">连接</Button>
+    </div>
 
- </div>
+  </div>
 </div>
  
 </template>
