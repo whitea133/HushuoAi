@@ -17,9 +17,8 @@ import os
 import time
 import threading
 import pythoncom
-from wxauto4 import WeChat
 from .shared_data import (
-    global_wx, 
+    init_wechat, 
     target_man, 
     realtime_q, 
     buffer_msgs, 
@@ -30,6 +29,7 @@ from .shared_data import (
 # SAVE_DIR = "received_images"
 # os.makedirs(SAVE_DIR, exist_ok=True)
 
+global_wx = init_wechat()   # 初始化微信对象，若已存在，则不初始化。
 class userMessage():
     
     def __init__(self, config_service: AppConfig):
@@ -38,6 +38,9 @@ class userMessage():
         # 关键：使用配置服务获取 SAVE_DIR
         self.save_dir = self.config.get_save_dir() 
         os.makedirs(self.save_dir, exist_ok=True) # 创建目录
+
+        # 线程停止事件
+        self.stop_event = threading.Event()
 
     # ----------------------------------------------------
     # 1. 提升：将回调逻辑作为私有方法
@@ -54,12 +57,14 @@ class userMessage():
                 realtime_q.put(f"[实时文字] {msg.content}")
 
             elif msg.type == 'image':
+                print(f"Attempting to download image to {self.save_dir}")
                 path = msg.download(dir_path=self.save_dir)
                 if path:
                     buffer_msgs.append({"type": "image", "content": path, "ts": now})
                     realtime_q.put(f"[实时图片] {path}")
 
             elif msg.type == 'video':
+                print(f"Attempting to download bideo to {self.save_dir}")
                 path = msg.download(dir_path=self.save_dir)
                 if path:
                     buffer_msgs.append({"type": "video", "content": path, "ts": now})
@@ -81,11 +86,12 @@ class userMessage():
             # 关键：传入类方法作为回调
             global_wx.AddListenChat(nickname=target_man, callback=self._on_message)
             
-            # 保持线程存活
-            while True:
+            # 保持线程存活，同时检查停止事件
+            while not self.stop_event.is_set():
                 time.sleep(1)
         finally:
             global_wx.RemoveListenChat(target_man)
+            print(f"Listener for {target_man} has been removed.")
             pythoncom.CoUninitialize()
 
     # ----------------------------------------------------
@@ -95,6 +101,10 @@ class userMessage():
         """
         建立对话连接并启动监听线程。
         """
+
+        # 清除任何旧的停止信号，准备开始新的监听
+        self.stop_event.clear()
+
         # 1. 设置全局目标
         global target_man
         target_man = target_nickname
@@ -104,3 +114,16 @@ class userMessage():
         
         return f"Listening thread started for {target_man}"
     
+    # ----------------------------------------------------
+    # 接口：停止监听
+    # ----------------------------------------------------
+    def stopConnect(self):
+        """
+        设置停止事件，通知后台监听线程退出。
+        """
+        if not self.stop_event.is_set():
+            # 发送停止信号
+            self.stop_event.set()
+            return f"Stop signal sent for listener: {target_man}"
+        
+        return "Listener is already stopped or stopping."

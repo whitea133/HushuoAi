@@ -71,7 +71,7 @@ const openVoiceTools = () => {
   });
 };
 
-const tryConnect = () => {
+const tryConnect = async () => {
   if (!connectedObject.value.trim()) {
     alert('连接对象不能为空');
     return;
@@ -82,28 +82,78 @@ const tryConnect = () => {
     }
     
     // TODO: 这里应调用 Python API 启动监听，成功后继续
-    // await pyApi.user_message_service.createConnect(connectedObject.value.trim());
+    const pywebviewApi = (window as any)?.pywebview?.api;
+    if (pywebviewApi) {
+        try {
+            const targetNickname = connectedObject.value.trim();  // 获取监听对象的名字
 
-    // 2. 设置状态为连接成功
-    ifConnected.value = true;
-    
-    // 3. 启动轮询：将定时器句柄保存到 pollInterval
-    pollInterval = setInterval(fetchNewMessages, 500); 
-    console.log("连接成功，轮询已启动。");
+            // 运行时检查：确保 userMessage.createConnect 方法存在
+            if (typeof pywebviewApi.userMessage?.createConnect !== 'function') {
+                console.error(`[PyWebView] API方法 userMessage.createConnect 未找到或不是函数。`);
+                alert('连接API未准备好，请检查后端暴露的API名称。');
+                return;
+            }
+
+            // 调用 Python API 启动监听线程
+            const result = await pywebviewApi.userMessage.createConnect(targetNickname);  // 开启监听
+            
+            console.log(`[PyWebView] 连接 API 调用成功。结果: ${result}`);
+
+            // 2. 成功后设置状态为连接成功
+            ifConnected.value = true;
+            
+            // 3. 启动轮询
+            pollInterval = setInterval(fetchNewMessages, 500);  // 实时刷新消息队列(在api_manager文件里面)
+            console.log("连接成功，轮询已启动。");
+
+        } catch (error) {
+            console.error("[PyWebView] 建立连接失败:", error);
+            alert(`连接失败：请检查微信是否登录或目标昵称是否正确。错误: ${error}`);
+            ifConnected.value = false;
+        }
+    } else {
+        // 非 PyWebView 环境下的调试模式
+        console.warn("[DEV MODE] 当前不是 pywebview 环境，无法调用 Python API。");
+        ifConnected.value = true;
+        pollInterval = setInterval(fetchNewMessages, 500);
+    }
 };
 
-const tryDisConnect = () => {
-    // 1. 清除定时器
+const tryDisConnect = async () => {
+    // 1. 清除前端定时器
     if (pollInterval !== undefined) {
         clearInterval(pollInterval);
-        pollInterval = undefined; // 清除引用
-        console.log("断开连接，轮询已停止。");
+        pollInterval = undefined;
+        console.log("前端轮询已停止。");
     }
     
-    // TODO: 这里应调用 Python API 停止监听
+    const pywebviewApi = (window as any)?.pywebview?.api;
+    if (pywebviewApi) {
+        try {
+            // 2. 调用 Python API 停止监听线程
+            if (typeof pywebviewApi.userMessage?.stopConnect === 'function') {
+                 // 修正后的代码现在在 async 函数中
+                 await pywebviewApi.userMessage.stopConnect(); 
+            }
 
-  // 这里写断连的连接逻辑
-  ifConnected.value = false;   // 示例：连接断开后弹回初始界面
+            // 3. 调用 Python API 清空消息缓存
+            if (typeof pywebviewApi.clear_all_caches === 'function') {
+                 // 修正后的代码现在在 async 函数中
+                 const clearResult = await pywebviewApi.clear_all_caches();
+                 console.log(`[PyWebView] 清理缓存结果: ${clearResult}`);
+            } else {
+                 console.warn(`[PyWebView] API方法 clear_all_caches 未找到。`);
+            }
+            
+        } catch (error) {
+            console.error("[PyWebView] 执行断开操作失败:", error);
+        }
+    }
+    
+    // 4. 更新前端状态和清理日志
+    ifConnected.value = false;
+    messageLog.value = []; // 清空聊天日志
+    connectedObject.value = ''; // 清空连接对象
 };
 
 // ---------------------------------------------
@@ -147,7 +197,7 @@ onUnmounted(() => {
 <!-- 右侧界面代码开始 -->
   <div class="col-span-11 grid grid-cols-1 grid-rows-10 gap-4 m-3" v-if="ifConnected"> 
     <!-- 下面是信息窗口，以及发送窗口 -->
-    <Textarea class="bg-white row-span-6" placeholder="这里是信息窗口" disabled />
+    <Textarea class="bg-white row-span-6" placeholder="这里是信息窗口" disabled :value="messageLog.join('\n')"/>
 
     <div class="row-span-4 grid bg-white grid-rows-12 p-1 gap-1 rounded-sm">
 

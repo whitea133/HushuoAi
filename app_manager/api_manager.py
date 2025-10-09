@@ -1,9 +1,8 @@
 import webview
 import json
 import queue
-from .shared_data import realtime_q
+from .shared_data import realtime_q, AppConfig,  buffer_lock,  buffer_msgs
 from .userMessage import userMessage
-
 '''
 这里管理着与vue交互的所有函数，比如创建窗口，子窗口等
 '''
@@ -13,7 +12,8 @@ class Api():
         self.rootPath = rootPath
         # 注意：这里的 Api 初始化不再需要 main_window，因为它只处理 API 逻辑
         # 如果需要访问窗口实例，请在 main.py 中修改创建 Api 实例的方式。
-        self.userMessage = userMessage()
+        self.cfg = AppConfig() # 这里是因为userMessage要传入AppConfig类才这样写的，不知道是好不好。后面修改
+        self.userMessage = userMessage(self.cfg) #
 
 
     def say_hello(self):
@@ -62,7 +62,7 @@ class Api():
             print(f"创建窗口失败: {e}")
             return f"Error: {e}"
         
-            # 新增方法：让 Vue 轮询这个方法来获取新消息
+    # 新增方法：让 Vue 轮询这个方法来获取新消息
     def get_realtime_messages(self):
         """
         从实时队列中取出所有当前可用的消息，并返回列表。
@@ -78,3 +78,22 @@ class Api():
                 break
         
         return messages
+    
+    # 清空消息队列和缓存
+    def clear_all_caches(self):
+        """
+        清空实时消息队列 (realtime_q) 和待生成消息缓存 (buffer_msgs)。
+        通常在断开连接时调用。
+        """
+        # 1. 清空实时队列
+        while not realtime_q.empty():
+            try:
+                realtime_q.get_nowait()
+            except queue.Empty:
+                break
+        
+        # 2. 清空待生成消息缓存（需要加锁）
+        with buffer_lock:
+            buffer_msgs.clear()
+            
+        return "All message queues and caches cleared."
