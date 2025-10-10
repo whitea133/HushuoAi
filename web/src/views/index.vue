@@ -5,10 +5,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from '@/components/ui/input'
 import leftBar from "@/views/leftBar.vue";
 
+type Phase = 'checkWin' | 'connectWin' | 'chatWin' // 控制阶段的类型别名
+const phase = ref<Phase>('checkWin')
 
-const ifConnected = ref<boolean>(false);
+// const ifConnected = ref<boolean>(false);
 const connectedObject = ref<string>('');
 const messageLog = ref<string[]>([]); // 聊天区的内容
+const inputContent = ref<string>('') // 发言的内容
 let pollInterval: number | undefined = undefined;
 
 const openToolsWindow = async (config: { title: string; route: string }) => {
@@ -39,9 +42,9 @@ const openToolsWindow = async (config: { title: string; route: string }) => {
         console.warn(`[PyWebView] 窗口 "${config.title}" 创建失败，无响应信息。`);
       }
 
-    } catch (error) {
+    } catch (error) { // 只有当后端代码是raise异常，而不是return的时候，就会进入这个catch
       // 4. 捕获 Python 端抛出的异常（例如：raise Exception）
-      console.error(`[PyWebView] 调用 Python API 失败，无法创建窗口 ${config.title}:`, error);
+      console.error(`create_sub_window()被raise出异常，调用失败。无法创建窗口 ${config.title}:`, error);
       // 可以在这里设置一个状态提示给用户
     }
   } else {
@@ -100,21 +103,24 @@ const tryConnect = async () => {
             console.log(`[PyWebView] 连接 API 调用成功。结果: ${result}`);
 
             // 2. 成功后设置状态为连接成功
-            ifConnected.value = true;
+            // ifConnected.value = true;
+            phase.value = 'chatWin';
             
             // 3. 启动轮询
             pollInterval = setInterval(fetchNewMessages, 500);  // 实时刷新消息队列(在api_manager文件里面)
             console.log("连接成功，轮询已启动。");
 
-        } catch (error) {
+        } catch (error) { // 后端代码raise出异常，而不是return时，触发catch
             console.error("[PyWebView] 建立连接失败:", error);
-            alert(`连接失败：请检查微信是否登录或目标昵称是否正确。错误: ${error}`);
-            ifConnected.value = false;
+            alert(`createConnect()被raise出异常，调用失败。错误: ${error}`);
+            // ifConnected.value = false;
+            phase.value = 'connectWin'
         }
     } else {
         // 非 PyWebView 环境下的调试模式
         console.warn("[DEV MODE] 当前不是 pywebview 环境，无法调用 Python API。");
-        ifConnected.value = true;
+        // ifConnected.value = true;
+        phase.value = 'chatWin';
         pollInterval = setInterval(fetchNewMessages, 500);
     }
 };
@@ -145,16 +151,87 @@ const tryDisConnect = async () => {
                  console.warn(`[PyWebView] API方法 clear_all_caches 未找到。`);
             }
             
-        } catch (error) {
-            console.error("[PyWebView] 执行断开操作失败:", error);
+        } catch (error) { // 后端代码raise出异常，而不是return时，触发catch
+            console.error("clear_all_caches被raise出异常，执行操作失败:", error);
         }
     }
     
     // 4. 更新前端状态和清理日志
-    ifConnected.value = false;
+    // ifConnected.value = false;
+    phase.value = 'connectWin';
     messageLog.value = []; // 清空聊天日志
     connectedObject.value = ''; // 清空连接对象
 };
+
+const checkLogin = async () => {
+  const pywebviewApi = (window as any)?.pywebview?.api;
+  if (pywebviewApi) {
+    try {
+          // 运行时检查：确保 userMessage.createConnect 方法存在
+          if (typeof pywebviewApi.userMessage?.init_wechat !== 'function') {
+              console.error(`[PyWebView] API方法 userMessage.init_wechat 未找到或不是函数。`);
+              alert('连接API未准备好，请检查后端暴露的API名称。');
+              return;
+          }
+
+          // 调用 Python API 启动监听线程
+          const result = await pywebviewApi.userMessage.init_wechat(); // 仅返回 true/false
+          
+          if (!result) {              // ← 新增：利用返回值做业务失败分支
+              alert('连接失败：请检查微信是否已经登录或版本不符。');
+              phase.value = 'checkWin';
+              return;
+            }
+
+          // 2. 进入连接界面
+          phase.value = 'connectWin';
+          console.log("检测微信环境已正常启动");
+    } catch (error) { // 后端代码raise出异常，而不是return时，触发catch
+          console.error("[PyWebView] 建立连接失败:", error);
+          alert(`init_wechat()被raise出异常，调用失败：${error}`);
+          phase.value = 'checkWin'
+      }
+    }
+    else // 与最上面的if对应
+    {  
+        // 非 PyWebView 环境下的调试模式
+        console.warn("[DEV MODE] 当前不是 pywebview 环境，无法调用 Python API。");
+        phase.value = 'connectWin';
+    }
+}
+
+const sendMessages = async () => {
+  const pywebviewApi = (window as any)?.pywebview?.api;
+  if (pywebviewApi) {
+    try {
+          // 运行时检查：确保 userMessage.createConnect 方法存在
+          if (typeof pywebviewApi.userMessage?.sendMessages !== 'function') {
+              console.error(`[PyWebView] API方法 userMessage.sendMessages 未找到或不是函数。`);
+              alert('连接API未准备好，请检查后端暴露的API名称。');
+              return;
+          }
+
+          // 调用 Python API 启动监听线程
+          const result = await pywebviewApi.userMessage.sendMessages(inputContent.value); // 仅返回 true/false
+          
+          if (!result) {              // ← 新增：利用返回值做业务失败分支
+              alert('发送失败，请检查网络');
+              return;
+            }
+          console.log("消息发送成功");
+          inputContent.value = '';   // 清空输入框
+    } catch (error) {
+          console.error("[PyWebView] 建立连接失败:", error);
+          alert(`sendMessages()被raise出异常，调用失败。错误: ${error}`);
+      }
+    }
+    else // 与最上面的if对应
+    {  
+        // 非 PyWebView 环境下的调试模式
+        console.warn("[DEV MODE] 当前不是 pywebview 环境，无法调用 Python API。");
+    }
+
+}
 
 // ---------------------------------------------
 // 关键：定时从 Python 队列中获取数据
@@ -175,7 +252,7 @@ async function fetchNewMessages() {
             // 可以滚动到底部等操作
         }
     } catch (error) {
-        console.error("Error fetching realtime messages from Python:", error);
+        console.error("get_realtime_messages()被raise出异常，调用失败:", error);
     }
 }
 
@@ -194,8 +271,20 @@ onUnmounted(() => {
 <div class="grid grid-cols-12 h-screen bg-gray-100">
 
   <leftBar class="col-span-1"/>
+
+  <div v-if="phase==='checkWin'" class="col-span-11 grid place-content-center">
+    <Button class="h-10 cursor-pointer bg-green-600 hover:bg-green-700" @click="checkLogin"> 检测微信是否登录 </Button>
+  </div>
+
+    <div v-else-if="phase==='connectWin'" class="col-span-11 grid place-content-center">
+    <div class="flex">
+     <Input id="email" type="email" placeholder=" 请填入对话对象" v-model="connectedObject" class="bg-white mx-2 w-60 h-8 border-1 border-blue-500 rounded-md"/>
+     <Button class="h-8 cursor-pointer" @click="tryConnect">连接</Button>
+    </div>
+
+  </div>
 <!-- 右侧界面代码开始 -->
-  <div class="col-span-11 grid grid-cols-1 grid-rows-10 gap-4 m-3" v-if="ifConnected"> 
+  <div class="col-span-11 grid grid-cols-1 grid-rows-10 gap-4 m-3" v-else-if="phase==='chatWin'"> 
     <!-- 下面是信息窗口，以及发送窗口 -->
     <Textarea class="bg-white row-span-6" placeholder="这里是信息窗口" disabled :value="messageLog.join('\n')"/>
 
@@ -216,23 +305,17 @@ onUnmounted(() => {
         <Button class="h-8 cursor-pointer ml-auto bg-orange-400 hover:bg-orange-500" @click="tryDisConnect">断开连接</Button>
       </div>
 
-        <Textarea class="row-span-8 bg-white" placeholder="这里是对话窗口" />
+        <Textarea class="row-span-8 bg-white" placeholder="这里是对话窗口" v-model="inputContent" />
         
         <div class="row-span-2 flex items-center justify-end px-2">
-            <Button class="w-24">发送</Button>
+            <Button class="w-24 cursor-pointer" @click="sendMessages">发送</Button>
         </div>
         
     </div>
     
 <!-- 右侧界面代码结束 -->  
   </div>
-  <div v-else class="col-span-11 grid place-content-center">
-    <div class="flex">
-     <Input id="email" type="email" placeholder=" 请填入对话对象" v-model="connectedObject" class="bg-white mx-2 w-60 h-8 border-1 border-blue-500 rounded-md"/>
-     <Button class="h-8 cursor-pointer" @click="tryConnect">连接</Button>
-    </div>
 
-  </div>
 </div>
  
 </template>

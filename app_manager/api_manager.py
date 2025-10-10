@@ -63,7 +63,7 @@ class Api():
             return f"Error: {e}"
         
     # 新增方法：让 Vue 轮询这个方法来获取新消息
-    def get_realtime_messages(self):
+    def get_realtime_messages(self):    # 处理的是realtime_q数据
         """
         从实时队列中取出所有当前可用的消息，并返回列表。
         """
@@ -97,3 +97,4 @@ class Api():
             buffer_msgs.clear()
             
         return "All message queues and caches cleared."
+    

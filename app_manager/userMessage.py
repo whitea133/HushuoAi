@@ -14,22 +14,24 @@ buffer_msgs = []          # {"type": "text|image|video", "content": str, "ts": f
 buffer_lock = threading.Lock()
 '''
 import os
+import sys
 import time
 import threading
 import pythoncom
 from .shared_data import (
-    init_wechat, 
+    global_wx,
     target_man, 
     realtime_q, 
     buffer_msgs, 
     buffer_lock, 
     AppConfig
 )       # 使用全局实时消息队列
+from wxauto import WeChat  # 使用的是 wxauto
 
 # SAVE_DIR = "received_images"
 # os.makedirs(SAVE_DIR, exist_ok=True)
 
-global_wx = init_wechat()   # 初始化微信对象，若已存在，则不初始化。
+
 class userMessage():
     
     def __init__(self, config_service: AppConfig):
@@ -42,6 +44,18 @@ class userMessage():
         # 线程停止事件
         self.stop_event = threading.Event()
 
+    def init_wechat(self) -> bool: # 初始化微信
+        global global_wx
+        if global_wx is not None:          # 已经初始化过
+            return True
+
+        try:
+            global_wx = WeChat()
+            return True
+        except Exception as e:             # 任何原因导致失败
+            print(f"[ERROR] 无法启动微信自动化：{e}")
+            return False
+        
     # ----------------------------------------------------
     # 1. 提升：将回调逻辑作为私有方法
     # ----------------------------------------------------
@@ -106,7 +120,7 @@ class userMessage():
         self.stop_event.clear()
 
         # 1. 设置全局目标
-        global target_man
+        global target_man   # 这里设置全局目标的原因，是为了下面能够主动给target_man赋值成其他对象
         target_man = target_nickname
 
         # 2. 启动线程，目标是 _connection_logic 方法
@@ -127,3 +141,14 @@ class userMessage():
             return f"Stop signal sent for listener: {target_man}"
         
         return "Listener is already stopped or stopping."
+    
+    # 发送消息函数
+    def sendMessages(self, input):    # input是输入的内容
+        try:
+            global_wx.SendMsg(input, who=target_man)
+            return True
+        except Exception as e:             # 任何原因导致失败
+            print(f"[ERROR] 发送消息失败：{e}")
+            return False
+        # # 清空消息缓冲区
+        # shared.buffer_msgs.clear()

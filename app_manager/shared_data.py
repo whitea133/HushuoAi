@@ -7,22 +7,22 @@ import threading
 import sys
 import os
 import pathlib
-from wxauto import WeChat  # 使用的是 wxauto4
+from wxauto import WeChat  # 使用的是 wxauto
 
 # 1. 单例对象 (全局使用一次)
 # -----------------------------------------------------
-_global_wx = None
+global_wx = None
 
-def init_wechat():
-    global _global_wx
-    if _global_wx is None:
-        try:
-            _global_wx = WeChat()
-        except Exception as e:          # wxauto 版本不对、微信版本过高都会进这里
-            # 友好退出，或者抛自定义异常给上层处理
-            print(f"[ERROR] 无法启动微信自动化：{e}")
-            sys.exit(1)
-    return _global_wx    # 用于全局的微信对象，避免多次调用
+# def init_wechat():
+#     global _global_wx
+#     if _global_wx is None:
+#         try:
+#             _global_wx = WeChat()
+#         except Exception as e:          # wxauto 版本不对、微信版本过高都会进这里
+#             # 友好退出，或者抛自定义异常给上层处理
+#             print(f"[ERROR] 无法启动微信自动化：{e}")
+#             sys.exit(1)
+#     return _global_wx    # 用于全局的微信对象，避免多次调用
 
 target_man = "" # 目标联系人，全局共享
 
