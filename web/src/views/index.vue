@@ -9,10 +9,15 @@ type Phase = 'checkWin' | 'connectWin' | 'chatWin' // 控制阶段的类型别�
 const phase = ref<Phase>('checkWin')
 
 // const ifConnected = ref<boolean>(false);
+const currentTool = ref<'upload'|'text'|'img'|'voice'>('text')   // 默认文本
 const connectedObject = ref<string>('');
 const messageLog = ref<string[]>([]); // 聊天区的内容
 const inputContent = ref<string>('') // 发言的内容
 let pollInterval: number | undefined = undefined;
+
+function switchTool(type: 'upload'|'text'|'img'|'voice') {
+  currentTool.value = type
+}
 
 const openToolsWindow = async (config: { title: string; route: string }) => {
   
@@ -73,6 +78,44 @@ const openVoiceTools = () => {
     route: '/voiceTool', 
   });
 };
+
+const openUploadTools = () => {
+  const pywebviewApi = (window as any)?.pywebview?.api;
+    if (pywebviewApi) 
+    {
+        try
+        {
+            if (typeof pywebviewApi.create_uploadWin !== 'function') 
+            {
+                console.error(`[PyWebView] API方法 create_uploadWin 未找到或不是函数。`);
+                alert('连接API未准备好，请检查后端暴露的API名称。');
+                return;
+            }
+            
+            // 调用 Python API 启动监听线程
+            const result = pywebviewApi.create_uploadWin(); 
+            
+          if (result) 
+          {
+            console.log(`[PyWebView] 窗口 "uploadWin" 创建成功。Python 响应:`, result);
+          } else 
+          {
+            console.warn(`[PyWebView] 窗口 "uploadWin" 创建失败，无响应信息。`);
+          }
+        } 
+        catch (error) 
+        { // 后端代码raise出异常，而不是return时，触发catch
+            console.error("[PyWebView] 建立连接失败:", error);
+            alert(`create_uploadWin()被raise出异常，调用失败：${error}`);
+        }
+    }
+    else // 与最上面的if对应
+    {  
+        // 非 PyWebView 环境下的调试模式
+        console.warn("[DEV MODE] 当前不是 pywebview 环境，无法调用 Python API。");
+    }
+  
+}
 
 const tryConnect = async () => {
   if (!connectedObject.value.trim()) {
@@ -268,23 +311,24 @@ onUnmounted(() => {
 </script>
 
 <template>
-<div class="grid grid-cols-12 h-screen bg-gray-100">
+<div class="flex h-screen bg-gray-100">
 
-  <leftBar class="col-span-1"/>
-
-  <div v-if="phase==='checkWin'" class="col-span-11 grid place-content-center">
+  <div v-if="phase==='checkWin'" class="grow grid place-content-center">
     <Button class="h-10 cursor-pointer bg-green-600 hover:bg-green-700" @click="checkLogin"> 检测微信是否登录 </Button>
   </div>
 
-    <div v-else-if="phase==='connectWin'" class="col-span-11 grid place-content-center">
+    <div v-else-if="phase==='connectWin'" class="grow grid place-content-center">
     <div class="flex">
      <Input id="email" type="email" placeholder=" 请填入对话对象" v-model="connectedObject" class="bg-white mx-2 w-60 h-8 border-1 border-blue-500 rounded-md"/>
      <Button class="h-8 cursor-pointer" @click="tryConnect">连接</Button>
     </div>
 
   </div>
-<!-- 右侧界面代码开始 -->
-  <div class="col-span-11 grid grid-cols-1 grid-rows-10 gap-4 m-3" v-else-if="phase==='chatWin'"> 
+
+  <div v-else-if="phase==='chatWin'" class="grow flex ">
+  <leftBar :toolType="currentTool" class="w-96 rounded-md ml-1 p-2 border-indigo-500 border-2"/>
+    <!-- 右侧界面代码开始 -->
+  <div class="grow grid grid-cols-1 grid-rows-10 gap-4 m-3" > 
     <!-- 下面是信息窗口，以及发送窗口 -->
     <Textarea class="bg-white row-span-6" placeholder="这里是信息窗口" disabled :value="messageLog.join('\n')"/>
 
@@ -292,13 +336,16 @@ onUnmounted(() => {
 
         <div class="row-span-2 flex items-center space-x-3 px-2">
         <!-- 功能栏 -->
-        <Button variant="outline" size="icon" title="文本加解密" class="cursor-pointer" @click="openTextTools">
+        <Button disabled  variant="outline" size="icon" title="发送文件" class="cursor-pointer" @click="switchTool('upload')">
+            <img src="@/components/icons/发送文件.png" alt="发送文件" class="w-5 h-5" />
+          </Button>
+        <Button variant="outline" size="icon" title="文本加解密" class="cursor-pointer" @click="switchTool('text')">
             <img src="@/components/icons/加密文本.png" alt="文本加解密" class="w-5 h-5" />
         </Button>
-        <Button variant="outline" size="icon" title="视频加解密" class="cursor-pointer" @click="openVideoTools">
+        <Button variant="outline" size="icon" title="视频加解密" class="cursor-pointer" @click="switchTool('img')">
             <img src="@/components/icons/加密视频.png" alt="视频加解密" class="w-5 h-5" />
         </Button>
-        <Button variant="outline" size="icon" title="音频加解密" class="cursor-pointer" @click="openVoiceTools">
+        <Button variant="outline" size="icon" title="音频加解密" class="cursor-pointer" @click="switchTool('voice')">
             <img src="@/components/icons/加密音频.png" alt="音频加解密" class="w-5 h-5" />
         </Button>
         
@@ -312,10 +359,11 @@ onUnmounted(() => {
         </div>
         
     </div>
-    
-<!-- 右侧界面代码结束 -->  
-  </div>
 
+  </div>
+<!-- 右侧界面代码结束 --> 
+  </div>
+ 
 </div>
  
 </template>

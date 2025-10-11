@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 
+
 const buttonStr1 = ref<string>('嵌入秘密');
 const buttonStr2 = ref<string>('提取秘密');
 
@@ -147,7 +148,7 @@ const handleDecryptClick = () => {
 </script>
 
 <template>
-<div class="grid grid-rows-2 h-screen gap-4 mx-1">
+<div class="grid grid-rows-2 h-screen gap-2 mx-1">
     <div class="row-span-1 grid bg-white grid-rows-8 gap-2">
         <Label for="message" class="row-span-1">嵌入秘密</Label>
         <Textarea class="row-span-5" placeholder="输入要嵌入的信息" v-model="plainText"/>

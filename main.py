@@ -3,6 +3,7 @@ import sys
 import os
 from app_manager.api_manager import Api
 
+
 # 这下面的if_else是固定操作
 if getattr(sys, "frozen", False):
     # 如果是打包后的可执行文件

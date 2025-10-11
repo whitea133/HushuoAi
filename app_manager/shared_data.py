@@ -24,6 +24,7 @@ global_wx = None
 #             sys.exit(1)
 #     return _global_wx    # 用于全局的微信对象，避免多次调用
 
+
 target_man = "" # 目标联系人，全局共享
 
 # 共享队列 (跨线程通信)

@@ -10,6 +10,10 @@ const router = createRouter({
       component: () => import("../views/index.vue"),
     },
     {
+       path: '/uploadTool',
+       component: () => import('../views/uploadTool.vue'),
+    },
+    {
       path: '/textTool',
       // name: 'about',
       // route level code-splitting
@@ -21,7 +25,7 @@ const router = createRouter({
        path: '/imgTool',
        component: () => import('../views/imgTool.vue'),
     },
-        {
+    {
        path: '/voiceTool',
        component: () => import('../views/voiceTool.vue'),
     }

@@ -14,6 +14,7 @@ class Api():
         # 如果需要访问窗口实例，请在 main.py 中修改创建 Api 实例的方式。
         self.cfg = AppConfig() # 这里是因为userMessage要传入AppConfig类才这样写的，不知道是好不好。后面修改
         self.userMessage = userMessage(self.cfg) #
+        self.window = None # main函数会覆盖这个单窗口应用
 
 
     def say_hello(self):
@@ -60,8 +61,8 @@ class Api():
         
         except Exception as e:
             print(f"创建窗口失败: {e}")
-            return f"Error: {e}"
-        
+            return f"Error: {e}"     
+
     # 新增方法：让 Vue 轮询这个方法来获取新消息
     def get_realtime_messages(self):    # 处理的是realtime_q数据
         """
@@ -98,3 +99,15 @@ class Api():
             
         return "All message queues and caches cleared."
     
+    # def openFileDialog(self):
+    #     try:
+    #         file_types = ('Image Files (*.bmp;*.jpg;*.gif)', 'All files (*.*)')
+
+    #         selected = current_window.create_file_dialog(
+    #             webview.FileDialog.OPEN, allow_multiple=False, file_types=file_types
+    #         )
+    #         print('selected的值是：',selected)
+    #         return selected[0] if selected else ''   # 前端拿到字符串或空串
+    #     except Exception as e:
+    #         print(f"[openFileDialog] 弹出文件框失败: {e}")
+    #         return ''

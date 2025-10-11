@@ -150,5 +150,14 @@ class userMessage():
         except Exception as e:             # 任何原因导致失败
             print(f"[ERROR] 发送消息失败：{e}")
             return False
-        # # 清空消息缓冲区
-        # shared.buffer_msgs.clear()
+
+
+    # 发送文件函数
+    def sendFile(self, filePath):
+        print('准备开始发送文件')
+        try:
+            global_wx.SendFiles(filepath=filePath, who=target_man, exact=False)
+            return True
+        except Exception as e:             # 任何原因导致失败
+            print(f"[ERROR] 发送消息失败：{e}")
+            return False
