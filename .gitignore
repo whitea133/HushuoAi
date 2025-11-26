@@ -1,0 +1,11 @@
+# 忽略打包后的静态文件
+/dist/
+/build/
+/webdist/
+/*.spec
+
+# 忽略日志文件
+*.log
+
+# 忽略前端依赖包
+/web/node_modules/
